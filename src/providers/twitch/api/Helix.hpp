@@ -520,7 +520,7 @@ enum class HelixWhisperError {  // /w
     Forwarded,
 };  // /w
 
-enum class HelixUserListError { // /chat/chatters and /moderation/moderators
+enum class HelixGeneralError {
     Unknown,
     UserMissingScope,
     UserNotAuthorized,
@@ -799,14 +799,14 @@ public:
     virtual void getChatters(
         QString broadcasterID, QString moderatorID,
         ResultCallback<std::unordered_set<QString>> successCallback,
-        FailureCallback<HelixUserListError, QString> failureCallback) = 0;
+        FailureCallback<HelixGeneralError, QString> failureCallback) = 0;
 
     // Get chatter count from chat/chatters endpoint
     // https://dev.twitch.tv/docs/api/reference#get-chatters
     virtual void getChatterCount(
         QString broadcasterID, QString moderatorID,
         ResultCallback<int> successCallback,
-        FailureCallback<HelixUserListError, QString> failureCallback) = 0;
+        FailureCallback<HelixGeneralError, QString> failureCallback) = 0;
     
     // https://dev.twitch.tv/docs/api/reference#get-vips
     virtual void getChannelVIPs(
@@ -1074,18 +1074,18 @@ public:
     void getChatters(
         QString broadcasterID, QString moderatorID,
         ResultCallback<std::unordered_set<QString>> successCallback,
-        FailureCallback<HelixUserListError, QString> failureCallback) final;
+        FailureCallback<HelixGeneralError, QString> failureCallback) final;
 
     // Get chatter count from chat/chatters endpoint
     // https://dev.twitch.tv/docs/api/reference#get-chatters
     void getChatterCount(
         QString broadcasterID, QString moderatorID,
         ResultCallback<int> successCallback,
-        FailureCallback<HelixUserListError, QString> failureCallback) final;
+        FailureCallback<HelixGeneralError, QString> failureCallback) final;
         
     static QString formatHelixUserListErrorString(
         QString userType, 
-        HelixUserListError error, 
+        HelixGeneralError error, 
         QString message);
 
     // https://dev.twitch.tv/docs/api/reference#get-vips
@@ -1109,10 +1109,11 @@ protected:
 private:
     NetworkRequest makeRequest(QString url, QUrlQuery urlQuery);
 
-    void getApiListRecursive(
+    void makeRequestWrapper(
         QString url, QUrlQuery urlQuery,
-        ResultCallback<const QJsonObject> successCallback,
-        FailureCallback<HelixUserListError, QString> failureCallback);
+        ResultCallback<QJsonObject*> *resultCallback,
+        FailureCallback<HelixGeneralError, QString> failureCallback
+    );
 
     QString clientId;
     QString oauthToken;
