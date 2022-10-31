@@ -1110,7 +1110,8 @@ private:
     NetworkRequest makeRequest(QString url, QUrlQuery urlQuery);
 
     void makeRequestWrapper(
-        QString url, QUrlQuery urlQuery,
+        QString url, QUrlQuery *urlQuery, 
+        int page, bool paginate,
         ResultCallback<QJsonObject*> *resultCallback,
         FailureCallback<HelixGeneralError, QString> failureCallback
     );

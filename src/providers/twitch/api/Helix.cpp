@@ -2030,13 +2030,14 @@ QString Helix::formatHelixUserListErrorString(
 
 // Recursive function with a maximun page of 50
 void Helix::makeRequestWrapper(
-    QString url, QUrlQuery urlQuery,
+    QString url, QUrlQuery *urlQuery, 
+    int page, bool paginate,
     ResultCallback<QJsonObject*> *resultCallback,
     FailureCallback<HelixGeneralError, QString> failureCallback
 ) {
     using Error = HelixGeneralError;
 
-    this->makeRequest(url, urlQuery)
+    this->makeRequest(url, *urlQuery)
         .type(NetworkRequestType::Get)
         .header("Content-Type", "application/json")
         .onSuccess([=](auto result) -> Outcome {
@@ -2049,6 +2050,16 @@ void Helix::makeRequestWrapper(
             {
                 auto json = result.parseJson();
                 (*resultCallback)(&json);
+                if (paginate)
+                {
+                    QString newCursor = json.value("pagination").toObject().value("cursor").toString();
+                    if (!newCursor.isEmpty() && page <= 50)
+                    {
+                        urlQuery->removeQueryItem("after");
+                        urlQuery->addQueryItem("after", newCursor);
+                        this->makeRequestWrapper(url, urlQuery, page+1, true, resultCallback, failureCallback);
+                    }
+                }
             }
 
             return Success;
@@ -2126,16 +2137,12 @@ void Helix::getChatters(
         }
 
         // Call function with next page until page 50 is reached or there are no more results
-        if (*page <= 50 && !newCursor.isEmpty()) {
-            urlQuery->removeQueryItem("after");
-            urlQuery->addQueryItem("after", newCursor);
-            this->makeRequestWrapper(url, *urlQuery, &handleResponse, failureCallback);
-        } else {
-            successCallback(*chatterList);
+        if (*page >= 50 || newCursor.isEmpty()) {
+            successCallback(*chatterList);   
         }
     };
 
-    this->makeRequestWrapper(url, *urlQuery, &handleResponse, failureCallback);
+    this->makeRequestWrapper(url, urlQuery, 1, true, &handleResponse, failureCallback);
 }
 
 // https://dev.twitch.tv/docs/api/reference#get-chatters
@@ -2144,16 +2151,16 @@ void Helix::getChatterCount(
     ResultCallback<int> successCallback,
     FailureCallback<HelixGeneralError, QString> failureCallback)
 {
-    QUrlQuery urlQuery;
+    QUrlQuery *urlQuery = new QUrlQuery();
 
-    urlQuery.addQueryItem("broadcaster_id", broadcasterID);
-    urlQuery.addQueryItem("moderator_id", moderatorID);
+    urlQuery->addQueryItem("broadcaster_id", broadcasterID);
+    urlQuery->addQueryItem("moderator_id", moderatorID);
 
     ResultCallback<QJsonObject*> handleResponse = [successCallback](QJsonObject *response) {
         successCallback(response->value("total").toInt());
     };
 
-    this->makeRequestWrapper("chat/chatters", urlQuery, &handleResponse, failureCallback);
+    this->makeRequestWrapper("chat/chatters", urlQuery, 0, false, &handleResponse, failureCallback);
 }
 
 // List the VIPs of a channel
