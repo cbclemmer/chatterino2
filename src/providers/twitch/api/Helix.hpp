@@ -330,16 +330,6 @@ struct HelixChatSettings {
     }
 };
 
-class HelixUserList {
-    public:
-        std::unordered_set<QString> users;
-        int total;
-
-        HelixUserList();
-
-        void AddUsersFromResponse(const QJsonObject &response);
-};
-
 struct HelixVip {
     QString userId;
     QString userName;
@@ -808,7 +798,14 @@ public:
     // https://dev.twitch.tv/docs/api/reference#get-chatters
     virtual void getChatters(
         QString broadcasterID, QString moderatorID,
-        ResultCallback<HelixUserList*> successCallback,
+        ResultCallback<std::unordered_set<QString>> successCallback,
+        FailureCallback<HelixUserListError, QString> failureCallback) = 0;
+
+    // Get chatter count from chat/chatters endpoint
+    // https://dev.twitch.tv/docs/api/reference#get-chatters
+    virtual void getChatterCount(
+        QString broadcasterID, QString moderatorID,
+        ResultCallback<int> successCallback,
         FailureCallback<HelixUserListError, QString> failureCallback) = 0;
     
     // https://dev.twitch.tv/docs/api/reference#get-vips
@@ -1076,7 +1073,14 @@ public:
     // https://dev.twitch.tv/docs/api/reference#get-chatters
     void getChatters(
         QString broadcasterID, QString moderatorID,
-        ResultCallback<HelixUserList*> successCallback,
+        ResultCallback<std::unordered_set<QString>> successCallback,
+        FailureCallback<HelixUserListError, QString> failureCallback) final;
+
+    // Get chatter count from chat/chatters endpoint
+    // https://dev.twitch.tv/docs/api/reference#get-chatters
+    void getChatterCount(
+        QString broadcasterID, QString moderatorID,
+        ResultCallback<int> successCallback,
         FailureCallback<HelixUserListError, QString> failureCallback) final;
         
     static QString formatHelixUserListErrorString(
@@ -1106,10 +1110,8 @@ private:
     NetworkRequest makeRequest(QString url, QUrlQuery urlQuery);
 
     void getApiListRecursive(
-        HelixUserList *list,
         QString url, QUrlQuery urlQuery,
-        int page, QString paginationCursor,
-        ResultCallback<HelixUserList*> successCallback,
+        ResultCallback<const QJsonObject> successCallback,
         FailureCallback<HelixUserListError, QString> failureCallback);
 
     QString clientId;
