@@ -6,12 +6,12 @@
 namespace chatterino {
 
 class Channel;
-
+using ChannelPtr = std::shared_ptr<Channel>;
 }  // namespace chatterino
 
 namespace filterparser {
 
-ContextMap buildContextMap(const MessagePtr &m, chatterino::Channel *channel);
+ContextMap buildContextMap(const MessagePtr &m, chatterino::ChannelPtr channel);
 
 class FilterParser
 {

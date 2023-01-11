@@ -39,7 +39,7 @@ bool FilterSet::filter(const MessagePtr &m, ChannelPtr channel) const
         return true;
 
     filterparser::ContextMap context =
-        filterparser::buildContextMap(m, channel.get());
+        filterparser::buildContextMap(m, channel);
     for (const auto &f : this->filters_.values())
     {
         if (!f->valid() || !f->filter(context))

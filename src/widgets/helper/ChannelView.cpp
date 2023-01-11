@@ -837,7 +837,7 @@ bool ChannelView::shouldIncludeMessage(const MessagePtr &m) const
                 m->loginName, Qt::CaseInsensitive) == 0)
             return true;
 
-        return this->channelFilters_->filter(m, this->channel_);
+        return this->channelFilters_->filter(m, this->split_->getChannel());
     }
 
     return true;

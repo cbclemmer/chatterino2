@@ -10,7 +10,7 @@
 
 namespace filterparser {
 
-ContextMap buildContextMap(const MessagePtr &m, chatterino::Channel *channel)
+ContextMap buildContextMap(const MessagePtr &m, chatterino::ChannelPtr channel)
 {
     auto watchingChannel = chatterino::getApp()->twitch->watchingChannel.get();
 
@@ -99,7 +99,7 @@ ContextMap buildContextMap(const MessagePtr &m, chatterino::Channel *channel)
     };
     {
         using namespace chatterino;
-        auto *tc = dynamic_cast<TwitchChannel *>(channel);
+        auto *tc = dynamic_cast<TwitchChannel *>(channel.get());
         if (channel && !channel->isEmpty() && tc)
         {
             vars["channel.live"] = tc->isLive();
