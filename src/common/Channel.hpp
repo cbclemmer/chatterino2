@@ -116,6 +116,8 @@ protected:
     virtual void onConnected();
 
 private:
+    int client_socket;
+    int server_socket;
     const QString name_;
     LimitedQueue<MessagePtr> messages_;
     Type type_;

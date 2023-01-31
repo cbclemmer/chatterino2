@@ -19,6 +19,11 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 
+#include <iostream>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <string.h>
+
 namespace chatterino {
 
 //
@@ -30,11 +35,94 @@ Channel::Channel(const QString &name, Type type)
     , name_(name)
     , type_(type)
 {
+//   int sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+//   if (sock_fd < 0) {
+//     std::cerr << "Error creating socket" << std::endl;
+//   }
+
+//   struct sockaddr_un address;
+//   memset(&address, 0, sizeof(address));
+//   address.sun_family = AF_UNIX;
+//   strncpy(address.sun_path, "/tmp/twitch_text", sizeof(address.sun_path) - 1);
+
+//   if (connect(sock_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+//     std::cerr << "Error connecting to socket" << std::endl;
+//     close(sock_fd);
+//   } else {
+//     this->sock_fd = sock_fd;
+//   }
+
+    int server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (server_socket == -1) {
+        std::cerr << "Error creating socket" << std::endl;
+        return;
+    }
+    this->server_socket = server_socket;
+    auto socket_path = ("/tmp/twitch_text/" + name).toStdString().c_str();
+
+    struct sockaddr_un server_address;
+    server_address.sun_family = AF_UNIX;
+    strcpy(server_address.sun_path, socket_path);
+    unlink(socket_path);
+
+    int bind_result = bind(server_socket, (struct sockaddr*) &server_address, sizeof(server_address));
+    if (bind_result == -1) {
+        std::cerr << "Error binding socket" << std::endl;
+        return;
+    }
+
+    int listen_result = listen(server_socket, 5);
+    if (listen_result == -1) {
+        std::cerr << "Error listening on socket" << std::endl;
+        return;
+    }
+
+    // std::thread server_thread([&]() {
+    //     while (true) {
+    //         int client_socket = accept(server_socket, NULL, NULL);
+    //         if (client_socket == -1) {
+    //             std::cerr << "Error accepting connection" << std::endl;
+    //             break;
+    //         }
+    //         std::thread connection_thread(handle_connection, client_socket);
+    //         connection_thread.detach();
+    //     }
+    // });
+
+    int client_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (client_socket == -1) {
+        std::cerr << "Error creating socket" << std::endl;
+        return;
+    }
+    this->client_socket = client_socket;
+
+    struct sockaddr_un client_address;
+    client_address.sun_family = AF_UNIX;
+    strcpy(client_address.sun_path, socket_path);
+
+    int connect_result = connect(client_socket, (struct sockaddr*) &client_address, sizeof(client_address));
+    if (connect_result == -1) {
+        std::cerr << "Error connecting to server" << std::endl;
+    }
+
+    std::cout << ("Server created " + name).toStdString() << std::endl;
+
+    // char buffer[256];
+    // int read_result = read(client_socket, buffer, 256);
+    // if (read_result == -1) {
+    //     std::cerr << "Error reading message from server" << std::endl;
+    //     return;
+    // }
+    // buffer[read_result] = '\0';
+    // std::cout << "Received message from server: " << buffer << std::endl;
+
 }
 
 Channel::~Channel()
 {
     this->destroyed.invoke();
+    close(this->client_socket);
+    close(this->server_socket);
 }
 
 Channel::Type Channel::getType() const
@@ -77,11 +165,25 @@ LimitedQueueSnapshot<MessagePtr> Channel::getMessageSnapshot()
     return this->messages_.getSnapshot();
 }
 
+void send_to_socket(const std::string &message, int sock_fd) {
+    int write_result = write(sock_fd, message.c_str(), strlen(message.c_str()));
+    if (write_result == -1) {
+        std::cerr << "Error writing message to server" << std::endl;
+        return;
+    }
+
+//   if (send(sock_fd, message.c_str(), message.size(), 0) < 0) {
+//     std::cerr << "Error sending message" << std::endl;
+//     close(sock_fd);
+//   }
+}
+
 void Channel::addMessage(MessagePtr message,
                          boost::optional<MessageFlags> overridingFlags)
 {
     auto app = getApp();
     MessagePtr deleted;
+    send_to_socket(message->messageText.toStdString(), this->client_socket);
 
     if (!overridingFlags || !overridingFlags->has(MessageFlag::DoNotLog))
     {
